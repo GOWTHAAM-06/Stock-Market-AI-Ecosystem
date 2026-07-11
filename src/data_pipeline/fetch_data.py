@@ -4,12 +4,10 @@ import pandas as pd
 from datetime import datetime
 
 def fetch_stock_data(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
-    """
-    Fetches historical daily data for a given stock ticker from Yahoo Finance.
-    """
+   
     print(f"🚀 Fetching data for {ticker} from {start_date} to {end_date}...")
     try:
-        # For Indian stocks on Yahoo Finance, append '.NS' for NSE
+       
         stock = yf.Ticker(ticker)
         df = stock.history(start=start_date, end=end_date)
         
@@ -24,14 +22,14 @@ def fetch_stock_data(ticker: str, start_date: str, end_date: str) -> pd.DataFram
         return None
 
 def save_data(df: pd.DataFrame, filename: str):
-    """Saves the dataframe to the data/ directory."""
+
     os.makedirs("data", exist_ok=True)
     filepath = os.path.join("data", filename)
     df.to_csv(filepath)
     print(f"💾 Data saved securely to {filepath}")
 
 if __name__ == "__main__":
-    # Let's start with a prominent NSE stock: Tata Steel
+   
     TARGET_TICKER = "TATASTEEL.NS" 
     START = "2023-01-01"
     END = datetime.today().strftime('%Y-%m-%d')
