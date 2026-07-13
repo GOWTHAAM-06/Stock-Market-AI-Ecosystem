@@ -1,0 +1,7 @@
+# Stock Market AI Ecosystem Configuration
+pipeline:
+  tickers:
+    - "TATASTEEL.NS"
+    - "RELIANCE.NS"
+  start_date: "2024-01-01"
+  data_directory: "data"
