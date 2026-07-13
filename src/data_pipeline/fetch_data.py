@@ -4,9 +4,9 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime
 from src.utils.logger import get_logger
+# Explicit import of our validation function
 from src.data_pipeline.validate_data import validate_dataset
 
-# Initialize the logger for this specific file
 logger = get_logger("DataIngestion")
 
 def load_config(config_path: str = "config/config.yaml") -> dict:
@@ -54,20 +54,15 @@ if __name__ == "__main__":
         end_date = datetime.today().strftime('%Y-%m-%d')
         
         for ticker in tickers:
-            data = fetch_stock_data(ticker, start_date, end_date)
-            if data is not None:
-                save_data(data, data_dir, f"{ticker}_historical.csv")
-                
-        logger.info("Pipeline processing batch completed successfully.\n")
-    except Exception as e:
-        logger.critical(f"Pipeline crashed during execution: {str(e)}\n")
-
-        for ticker in tickers:
             filename = f"{ticker}_historical.csv"
             data = fetch_stock_data(ticker, start_date, end_date)
             if data is not None:
                 save_data(data, data_dir, filename)
                 
-                # Dynamic Checkpoint Trigger
+                # Trigger Data Validation Checkpoint immediately after saving
                 full_path = os.path.join(data_dir, filename)
                 validate_dataset(full_path)
+                
+        logger.info("Pipeline processing batch completed successfully.\n")
+    except Exception as e:
+        logger.critical(f"Pipeline crashed during execution: {str(e)}\n")
