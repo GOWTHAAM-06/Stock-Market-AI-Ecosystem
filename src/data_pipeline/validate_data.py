@@ -5,10 +5,6 @@ from src.utils.logger import get_logger
 logger = get_logger("DataValidation")
 
 def validate_dataset(filepath: str) -> bool:
-    """
-    Performs critical integrity checks on the processed financial data.
-    Returns True if data passes all production checks, False otherwise.
-    """
     if not os.path.exists(filepath):
         logger.error(f"Validation target missing: {filepath}")
         return False
@@ -18,19 +14,17 @@ def validate_dataset(filepath: str) -> bool:
     
     is_valid = True
     
-    # Check 1: Empty Data Check
     if df.empty:
         logger.error(f"❌ Validation Failed: Dataset is completely empty.")
         return False
         
-    # Check 2: Missing Essential Columns Check
+
     required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
     missing_cols = [col for col in required_columns if col not in df.columns]
     if missing_cols:
         logger.error(f"❌ Validation Failed: Missing columns {missing_cols}")
         is_valid = False
 
-    # Check 3: Mathematical Multi-Point Checks (Only run if columns exist)
     if is_valid:
         # High must always be greater than or equal to Low
         anomaly_high_low = df[df['High'] < df['Low']]
