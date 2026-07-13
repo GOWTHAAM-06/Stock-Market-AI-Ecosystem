@@ -3,8 +3,8 @@ import yaml
 import yfinance as yf
 import pandas as pd
 from datetime import datetime
-# Import our new logging engine
 from src.utils.logger import get_logger
+from src.data_pipeline.validate_data import validate_dataset
 
 # Initialize the logger for this specific file
 logger = get_logger("DataIngestion")
@@ -61,3 +61,13 @@ if __name__ == "__main__":
         logger.info("Pipeline processing batch completed successfully.\n")
     except Exception as e:
         logger.critical(f"Pipeline crashed during execution: {str(e)}\n")
+
+        for ticker in tickers:
+            filename = f"{ticker}_historical.csv"
+            data = fetch_stock_data(ticker, start_date, end_date)
+            if data is not None:
+                save_data(data, data_dir, filename)
+                
+                # Dynamic Checkpoint Trigger
+                full_path = os.path.join(data_dir, filename)
+                validate_dataset(full_path)
