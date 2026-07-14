@@ -1,13 +1,12 @@
 import os
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from src.utils.logger import get_logger
 
 logger = get_logger("DataPreprocessing")
 
 def prepare_model_data(feature_filepath: str, target_col: str = 'Log_Return', test_size: float = 0.2):
-   
+    
     if not os.path.exists(feature_filepath):
         logger.error(f"Preprocessing target missing: {feature_filepath}")
         return None
@@ -17,12 +16,15 @@ def prepare_model_data(feature_filepath: str, target_col: str = 'Log_Return', te
     
     
     df['Target'] = df[target_col].shift(-1)
-    df.dropna(inplace=True) 
+    df.dropna(inplace=True)
     
     X = df.drop(columns=['Target'])
     y = df['Target']
     
-   
+    
+    feature_names = X.columns.tolist()
+    
+    
     split_index = int(len(df) * (1 - test_size))
     
     X_train, X_test = X.iloc[:split_index], X.iloc[split_index:]
@@ -37,11 +39,4 @@ def prepare_model_data(feature_filepath: str, target_col: str = 'Log_Return', te
     
     logger.info("✅ Feature matrix scaling completed using standard normalization.")
     
-    return X_train_scaled, X_test_scaled, y_train, y_test
-
-if __name__ == "__main__":
-    
-    test_feature_file = "data/TATASTEEL.NS_features.csv"
-    if os.path.exists(test_feature_file):
-        X_tr, X_te, y_tr, y_te = prepare_model_data(test_feature_file)
-        print(f"🚀 Preprocessing test verified! Train shape: {X_tr.shape}, Test shape: {X_te.shape}")
+    return X_train_scaled, X_test_scaled, y_train, y_test, feature_names

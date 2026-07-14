@@ -4,7 +4,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime
 from src.utils.logger import get_logger
-# Explicit import of our validation function
+
 from src.data_pipeline.validate_data import validate_dataset
 
 logger = get_logger("DataIngestion")
@@ -59,7 +59,7 @@ if __name__ == "__main__":
             if data is not None:
                 save_data(data, data_dir, filename)
                 
-                # Trigger Data Validation Checkpoint immediately after saving
+                
                 full_path = os.path.join(data_dir, filename)
                 validate_dataset(full_path)
                 
