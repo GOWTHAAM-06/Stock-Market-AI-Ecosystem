@@ -1,60 +1,49 @@
 import os
-import numpy as np
+import sys
 import pandas as pd
+import numpy as np
+
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
 from src.utils.logger import get_logger
 
 logger = get_logger("FeatureEngineering")
 
-def calculate_rsi(series: pd.Series, period: int = 14) -> pd.Series:
-    """Calculates the Relative Strength Index (RSI) using exponential rolling averages."""
-    delta = series.diff()
-    gain = (delta.where(delta > 0, 0)).ewm(alpha=1/period, adjust=False).mean()
-    loss = (-delta.where(delta < 0, 0)).ewm(alpha=1/period, adjust=False).mean()
-    
-    rs = gain / (loss + 1e-9)  
-    return 100 - (100 / (1 + rs))
+def add_advanced_signals(filepath: str, stock_name: str):
+    if not os.path.exists(filepath):
+        logger.error(f"Target missing: {filepath}")
+        return
 
-def generate_technical_indicators(input_filepath: str, output_filepath: str) -> pd.DataFrame:
-   
-    if not os.path.exists(input_filepath):
-        logger.error(f"Feature target missing: {input_filepath}")
-        return None
-
-    logger.info(f"📊 Extrapolating math matrices for {input_filepath}...")
-    df = pd.read_csv(input_filepath, parse_dates=['Date'], index_col='Date')
+    logger.info(f"🧪 Engineering advanced cross-features for {stock_name}...")
+    df = pd.read_csv(filepath, parse_dates=['Date'], index_col='Date')
     
     
-    df['MA_14'] = df['Close'].rolling(window=14).mean()
-    df['MA_50'] = df['Close'].rolling(window=50).mean()
+    df['ROC_10'] = ((df['Close'] - df['Close'].shift(10)) / df['Close'].shift(10)) * 100
+    df['MA_20'] = df['Close'].rolling(window=20).mean()
+    df['20STD'] = df['Close'].rolling(window=20).std()
+    df['BB_Upper'] = df['MA_20'] + (df['20STD'] * 2)
+    df['BB_Lower'] = df['MA_20'] - (df['20STD'] * 2)
     
-   
-    df['RSI_14'] = calculate_rsi(df['Close'], period=14)
+    df['BB_Position'] = np.where(
+        (df['BB_Upper'] - df['BB_Lower']) != 0,
+        (df['Close'] - df['BB_Lower']) / (df['BB_Upper'] - df['BB_Lower']),
+        0.5
+    )
     
     
-    exp1 = df['Close'].ewm(span=12, adjust=False).mean()
-    exp2 = df['Close'].ewm(span=26, adjust=False).mean()
-    df['MACD'] = exp1 - exp2
-    df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
-    df['MACD_Hist'] = df['MACD'] - df['MACD_Signal']
+    df['Vol_MA20'] = df['Volume'].rolling(window=20).mean()
+    df['Volume_Ratio'] = df['Volume'] / df['Vol_MA20']
     
-   
-    df['Log_Return'] = np.log(df['Close'] / df['Close'].shift(1))
-    df['Rolling_Volatility'] = df['Log_Return'].rolling(window=14).std()
     
-  
+    df['VPM_10'] = df['ROC_10'] * df['Volume_Ratio']
+    
     df.dropna(inplace=True)
-    
-    os.makedirs(os.path.dirname(output_filepath), exist_ok=True)
-    df.to_csv(output_filepath)
-    logger.info(f"✨ Feature matrix successfully saved to {output_filepath}. Final Dimensions: {df.shape}")
-    
-    return df
+    df.to_csv(filepath)
+    logger.info(f"✅ Volume-Price Multipliers integrated into {filepath}")
 
 if __name__ == "__main__":
-
     stocks = ["TATASTEEL.NS", "RELIANCE.NS"]
-    
     for stock in stocks:
-        raw_path = f"data/{stock}_historical.csv"
-        features_path = f"data/{stock}_features.csv"
-        generate_technical_indicators(raw_path, features_path)
+        feature_file = f"data/{stock}_features.csv"
+        add_advanced_signals(feature_file, stock)
