@@ -7,18 +7,19 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 import uvicorn
 
-# Force Python to recognize the project root directory
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 from src.utils.logger import get_logger
 from src.models.train_model import train_momentum_model
+from src.models.preprocess import prepare_model_data
 
 logger = get_logger("BullstrikeAPI")
 
-# Cache to store active model weights in memory
+
 model_registry = {}
 
-# Modern Lifespan Event Handler (Replaces deprecated on_event)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("⚡ BULLSTRIKE COBALT: Quant Engine booting up...")
@@ -47,6 +48,10 @@ def read_root():
 
 @app.get("/predict/{stock_name}")
 def get_prediction(stock_name: str):
+    """
+    Fetches the latest test features with exact scaling preprocessing 
+    and predicts the next market movement direction.
+    """
     stock_upper = stock_name.upper()
     feature_file = f"data/{stock_upper}_features.csv"
     
@@ -57,13 +62,25 @@ def get_prediction(stock_name: str):
         logger.info(f"💾 Dynamically caching weights for {stock_upper}...")
         model_registry[stock_upper] = train_momentum_model(feature_file, stock_upper)
         
-    df = pd.read_csv(feature_file, parse_dates=['Date'], index_col='Date')
-    df.dropna(inplace=True)
     
-    if df.empty:
-        raise HTTPException(status_code=400, detail="Empty dataset matrix.")
+    _, X_test, _, _, dates_test = prepare_model_data(feature_file, target_col='Log_Return')
+    
+    
+    latest_features = X_test[-1].reshape(1, -1)
+    
+    
+    if hasattr(dates_test, 'iloc'):
+        latest_date_val = dates_test.iloc[-1]
+    else:
+        latest_date_val = dates_test[-1]
         
-    latest_features = df.iloc[-1].drop(['Close', 'Volume', 'Log_Return'], errors='ignore').values.reshape(1, -1)
+    
+    if hasattr(latest_date_val, 'date'):
+        latest_date = str(latest_date_val.date())
+    else:
+    
+        latest_date = str(latest_date_val)[:10]
+    
     model = model_registry[stock_upper]
     prediction = int(model.predict(latest_features)[0])
     
@@ -72,13 +89,13 @@ def get_prediction(stock_name: str):
     
     return {
         "ticker": stock_upper,
-        "date_processed": str(df.index[-1].date()),
+        "date_processed": latest_date,
         "signal": action,
         "confidence": f"{confidence:.2f}%",
-        "vector_value": 1 if action == "LONG" else -1
+        "vector_value": 1 if action == "LONG" else -1,
+        "features_processed": int(latest_features.shape[1])
     }
 
-# NEW: Dynamic HTML Dashboard Route hosted directly inside the API!
 @app.get("/dashboard", response_class=HTMLResponse)
 def get_interactive_dashboard():
     results_dir = "data/results"
