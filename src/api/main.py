@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 import uvicorn
-
+import joblib  
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
@@ -16,17 +16,34 @@ from src.models.preprocess import prepare_model_data
 
 logger = get_logger("BullstrikeAPI")
 
-
 model_registry = {}
 
+def load_or_train_model(stock_name: str, feature_file: str):
+    """
+    Looks for serialized model weights on disk.
+    Loads immediately if present, otherwise executes the training pipeline.
+    """
+    model_path = f"data/models/{stock_name}_random_forest.joblib"
+    
+    if os.path.exists(model_path):
+        logger.info(f"📂 Found serialized weights for {stock_name}. Loading from disk instantly...")
+        return joblib.load(model_path)
+    else:
+        logger.info(f"⚠️ No weights found on disk for {stock_name}. Triggering baseline training pipeline...")
+        return train_momentum_model(feature_file, stock_name)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("⚡ BULLSTRIKE COBALT: Quant Engine booting up...")
-    tata_features = "data/TATASTEEL.NS_features.csv"
-    if os.path.exists(tata_features):
-        logger.info("💎 Pre-loading Tata Steel predictive weight matrices...")
-        model_registry["TATASTEEL.NS"] = train_momentum_model(tata_features, "TATASTEEL.NS")
+    
+    
+    assets_to_load = ["TATASTEEL.NS", "RELIANCE.NS"]
+    for asset in assets_to_load:
+        feature_file = f"data/{asset}_features.csv"
+        if os.path.exists(feature_file):
+            logger.info(f"💎 Initializing weight matrix allocation for {asset}...")
+            model_registry[asset] = load_or_train_model(asset, feature_file)
+            
     yield
     logger.info("🔌 BULLSTRIKE COBALT: Shutting down safely...")
     model_registry.clear()
@@ -59,26 +76,20 @@ def get_prediction(stock_name: str):
         raise HTTPException(status_code=404, detail=f"Asset features for {stock_upper} not found.")
         
     if stock_upper not in model_registry:
-        logger.info(f"💾 Dynamically caching weights for {stock_upper}...")
-        model_registry[stock_upper] = train_momentum_model(feature_file, stock_upper)
+        model_registry[stock_upper] = load_or_train_model(stock_upper, feature_file)
         
-    
     _, X_test, _, _, dates_test = prepare_model_data(feature_file, target_col='Log_Return')
     
-    
     latest_features = X_test[-1].reshape(1, -1)
-    
     
     if hasattr(dates_test, 'iloc'):
         latest_date_val = dates_test.iloc[-1]
     else:
         latest_date_val = dates_test[-1]
         
-    
     if hasattr(latest_date_val, 'date'):
         latest_date = str(latest_date_val.date())
     else:
-    
         latest_date = str(latest_date_val)[:10]
     
     model = model_registry[stock_upper]
