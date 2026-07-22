@@ -26,10 +26,10 @@ def run_portfolio_backtest(feature_filepath: str, stock_name: str, stop_loss_pct
     
     model_path = f"data/models/{stock_name}_random_forest.joblib"
     if os.path.exists(model_path):
-        logger.info(f"📂 Found pre-trained weights for {stock_name}. Loading instantly from disk...")
+        logger.info(f" Found pre-trained weights for {stock_name}. Loading instantly from disk...")
         model = joblib.load(model_path)
     else:
-        logger.info(f"⚠️ No cached weights found for {stock_name}. Executing optimization grid search...")
+        logger.info(f" No cached weights found for {stock_name}. Executing optimization grid search...")
         model = train_momentum_model(feature_filepath, stock_name)
     
         
@@ -73,11 +73,11 @@ def run_portfolio_backtest(feature_filepath: str, stock_name: str, stop_loss_pct
     downside_std = downside_returns.std()
     annual_sortino = (test_df['Strategy_Return'].mean() / downside_std) * np.sqrt(252) if downside_std != 0 else 0
     
-    logger.info(f"📊 --- REALISTIC PERFORMANCE FOR {stock_name} ---")
-    logger.info(f"🏆 Baseline Buy & Hold: {final_market_perf:.2f}%")
-    logger.info(f"🤖 Real-World AI Return: {final_strategy_perf:.2f}%")
-    logger.info(f"📈 Annualized Sharpe Ratio: {annual_sharpe:.2f}")
-    logger.info(f"🛡️ Annualized Sortino Ratio: {annual_sortino:.2f}")
+    logger.info(f" --- REALISTIC PERFORMANCE FOR {stock_name} ---")
+    logger.info(f" Baseline Buy & Hold: {final_market_perf:.2f}%")
+    logger.info(f" Real-World AI Return: {final_strategy_perf:.2f}%")
+    logger.info(f" Annualized Sharpe Ratio: {annual_sharpe:.2f}")
+    logger.info(f" Annualized Sortino Ratio: {annual_sortino:.2f}")
     
     os.makedirs("data/results", exist_ok=True)
     test_df.to_csv(f"data/results/{stock_name}_backtest.csv")
